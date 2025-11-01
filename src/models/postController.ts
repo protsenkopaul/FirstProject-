@@ -1,8 +1,5 @@
-import type { Author } from "./authorController.js";
-import { readJson, writeJson } from "../db.js";
+import { pool } from "../db.js";
 
-
-const FILE = "posts.json";
 export type Post = {
   id: string;
   authorId: string;
@@ -13,25 +10,43 @@ export type Post = {
 };
 
 export async function createPost(authorId: string, title: string, content: string): Promise<Post> {
-  const posts = await readJson<Post>(FILE);
-  const newPost: Post = {
-    id: crypto.randomUUID(),
-    authorId,
-    title,
-    content,
-    createdAt: new Date().toISOString(),
-    likes: 0
+  const res = await pool.query(
+    `INSERT INTO posts (title, body, user_id)
+     VALUES ($1, $2, $3)
+     RETURNING *`,
+    [title, content, authorId]
+  );
+  const row = res.rows[0];
+  return {
+    id: row.id,
+    authorId: row.user_id || row.userid || row.userId,
+    title: row.title,
+    content: row.body || row.content,
+    createdAt: row.created_at || row.createdAt || row.createdat,
+    likes: 0,
   };
-  posts.push(newPost);
-  await writeJson(FILE, posts);
-  return newPost;
 }
 
 export async function getFeed(authorId: string): Promise<Post[]> {
-  const posts = await readJson<Post>(FILE);
-  const authors = await readJson<Author>("authors.json");
-  const author = authors.find((a: Author) => a.id === authorId);
-  if (!author) throw new Error("Author not found");
+  // Find followed user ids
+  const followsRes = await pool.query(
+    `SELECT followed_user_id FROM follows WHERE following_user_id = $1`,
+    [authorId]
+  );
+  const followed = followsRes.rows.map((r: any) => r.followed_user_id);
+  if (followed.length === 0) return [];
 
-  return posts.filter((p) => author.following.includes(p.authorId));
+  const postsRes = await pool.query(
+    `SELECT * FROM posts WHERE user_id = ANY($1::uuid[]) ORDER BY created_at DESC`,
+    [followed]
+  );
+
+  return postsRes.rows.map((row: any) => ({
+    id: row.id,
+    authorId: row.user_id || row.userid || row.userId,
+    title: row.title,
+    content: row.body || row.content,
+    createdAt: row.created_at || row.createdAt || row.createdat,
+    likes: 0,
+  }));
 }

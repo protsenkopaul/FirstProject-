@@ -10,6 +10,8 @@ export const users = pgTable("users", {
   id: uuid().primaryKey().defaultRandom(),
   username: varchar({ length: 255 }).notNull(),
   bio: varchar({ length: 1024 }),
+  // optional password hash for registered users
+  passwordHash: varchar({ length: 512 }),
   createdAt: timestamp({ withTimezone: true }).defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).defaultNow(),
 });
