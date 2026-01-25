@@ -1,32 +1,32 @@
 import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
-import { createAuthor, followAuthor } from "./models/authorController.js";
-import { createPost, getFeed } from "./models/postController.js";
+import { sValidator } from '@hono/standard-validator';
+import { createAuthor, followAuthor, hashPassword } from "./models/author-controller.js";
+import { createPost, getFeed } from "./models/post-controller.js";
 import {
   CreateAuthorSchema,
   FollowAuthorSchema,
   CreatePostSchema,
   CreateUserSchema,
 } from "./schemas.js";
-import { hashPassword, pool } from "./db.js";
+import { pool } from "./db.js";
 
 
 const app = new Hono();
 
-app.post("/authors", zValidator('json', CreateAuthorSchema), async (c) => {
+app.post("/authors", sValidator('json', CreateAuthorSchema), async (c) => {
   const { name, bio } = await c.req.json();
   const author = await createAuthor(name, bio);
   return c.json(author);
 });
 
-app.post("/authors/:id/follow", zValidator('json', FollowAuthorSchema), async (c) => {
+app.post("/authors/:id/follow", sValidator('json', FollowAuthorSchema), async (c) => {
   const followerId = c.req.param('id');
   const { targetId } = await c.req.json();
   const result = await followAuthor(followerId, targetId);
   return c.json(result);
 });
 
-app.post("/posts", zValidator('json', CreatePostSchema), async (c) => {
+app.post("/posts", sValidator('json', CreatePostSchema), async (c) => {
   const { authorId, title, content } = await c.req.json();
   const post = await createPost(authorId, title, content);
   return c.json(post);
@@ -38,10 +38,9 @@ app.get("/feed/:id", async (c) => {
   return c.json(feed);
 });
 
-app.post('/register', zValidator('json', CreateUserSchema), async (c) => {
+app.post('/register', sValidator('json', CreateUserSchema), async (c) => {
   const { username, password } = await c.req.json();
   const ex = await pool.query(`SELECT id FROM users WHERE username = $1`, [username]);
-  // `rowCount` may be nullable depending on typings; fall back to rows.length
   const existingCount = (ex?.rowCount ?? ex?.rows?.length ?? 0) as number;
   if (existingCount > 0) return c.json({ error: 'Username already exists' }, 400);
   const passwordHash = hashPassword(password);

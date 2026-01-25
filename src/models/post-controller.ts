@@ -28,7 +28,6 @@ export async function createPost(authorId: string, title: string, content: strin
 }
 
 export async function getFeed(authorId: string): Promise<Post[]> {
-  // Find followed user ids
   const followsRes = await pool.query(
     `SELECT followed_user_id FROM follows WHERE following_user_id = $1`,
     [authorId]

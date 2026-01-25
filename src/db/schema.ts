@@ -8,22 +8,21 @@ import {
 
 export const users = pgTable("users", {
   id: uuid().primaryKey().defaultRandom(),
-  username: varchar({ length: 255 }).notNull(),
-  bio: varchar({ length: 1024 }),
-  // optional password hash for registered users
-  passwordHash: varchar({ length: 512 }),
+  username: text().notNull(),
+  bio: text(),
+  passwordHash: text(),
   createdAt: timestamp({ withTimezone: true }).defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).defaultNow(),
 });
 
 export const posts = pgTable("posts", {
   id: uuid().primaryKey().defaultRandom(),
-  title: varchar({ length: 255 }).notNull(),
+  title: text().notNull(),
   body: text("body").notNull(),
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id),
-  status: varchar({ length: 50 }),
+  status: text(),
   createdAt: timestamp({ withTimezone: true }).defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).defaultNow(),
 });
@@ -48,14 +47,14 @@ export const comments = pgTable("comments", {
   id: uuid().primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id),
   commentedPostId: uuid("commented_post_id").references(() => posts.id),
-  content: varchar({ length: 2000 }).notNull(),
+  content: text().notNull(),
   createdAt: timestamp({ withTimezone: true }).defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).defaultNow(),
 });
 
 export const tags = pgTable("tags", {
   id: uuid().primaryKey().defaultRandom(),
-  name: varchar({ length: 255 }).unique().notNull(),
+  name: text().unique().notNull(),
   createdAt: timestamp({ withTimezone: true }).defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).defaultNow(),
 });
@@ -70,8 +69,8 @@ export const postTags = pgTable("post_tags", {
 
 export const blogs = pgTable("blogs", {
   id: uuid().primaryKey().defaultRandom(),
-  title: varchar({ length: 255 }).notNull(),
-  description: varchar({ length: 1024 }),
+  title: text().notNull(),
+  description: text(),
   createdAt: timestamp({ withTimezone: true }).defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).defaultNow(),
 });
@@ -88,7 +87,7 @@ export const blogAuthors = pgTable("blog_authors", {
   id: uuid().primaryKey().defaultRandom(),
   blogId: uuid("blog_id").references(() => blogs.id),
   authorId: uuid("author_id").references(() => users.id),
-  role: varchar({ length: 100 }),
+  role: text(),
   createdAt: timestamp({ withTimezone: true }).defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).defaultNow(),
 });

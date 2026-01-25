@@ -1,10 +1,19 @@
 import { pool } from "../db.js";
+import argon2 from 'argon2'
 
-const normalizeUserRow = (row: any) => ({
+type UserRow = {
+  id: string;
+  username?: string;
+  name?: string;
+  bio?: string | null;
+  createdAt?: Date;
+};
+
+const normalizeUserRow = (row: UserRow) => ({
   id: row.id,
   name: row.username || row.name,
   bio: row.bio,
-  createdAt: row.created_at || row.createdat || row.createdAt,
+  createdAt: row.createdAt,
   following: [] as string[],
 });
 
@@ -19,14 +28,18 @@ export async function createAuthor(name: string, bio?: string) {
   return normalizeUserRow(row);
 }
 
+export function hashPassword(password: string) {
+    return argon2.hash(password, {
+    type: argon2.argon2id
+  })
+}
+
 export async function followAuthor(followerId: string, targetId: string) {
-  // validate users exist
   const followerRes = await pool.query(`SELECT id FROM users WHERE id = $1`, [followerId]);
   if (followerRes.rowCount === 0) throw new Error('Follower not found');
   const targetRes = await pool.query(`SELECT id FROM users WHERE id = $1`, [targetId]);
   if (targetRes.rowCount === 0) throw new Error('Target not found');
 
-  // Check existing follow
   const exists = await pool.query(
     `SELECT id FROM follows WHERE following_user_id = $1 AND followed_user_id = $2`,
     [followerId, targetId]
@@ -45,6 +58,6 @@ export async function followAuthor(followerId: string, targetId: string) {
 
   return {
     id: followerId,
-    following: following.rows.map((r: any) => r.followed_user_id),
+    following: following.rows.map(r => r.followed_user_id),
   };
 }
