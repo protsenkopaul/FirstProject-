@@ -1,4 +1,6 @@
-import { pool } from "../db.js";
+import { db } from "../db.js";
+import { users, follows } from "../db/schema.js";
+import { eq, and } from "drizzle-orm";
 import argon2 from 'argon2'
 
 type UserRow = {
@@ -18,14 +20,12 @@ const normalizeUserRow = (row: UserRow) => ({
 });
 
 export async function createAuthor(name: string, bio?: string) {
-  const res = await pool.query(
-    `INSERT INTO users (username, bio)
-     VALUES ($1, $2)
-     RETURNING *`,
-    [name, bio]
-  );
-  const row = res.rows[0];
-  return normalizeUserRow(row);
+  const inserted = await db
+    .insert(users)
+    .values({ username: name, bio })
+    .returning();
+  const row = inserted[0];
+  return normalizeUserRow(row as UserRow);
 }
 
 export function hashPassword(password: string) {
@@ -35,29 +35,27 @@ export function hashPassword(password: string) {
 }
 
 export async function followAuthor(followerId: string, targetId: string) {
-  const followerRes = await pool.query(`SELECT id FROM users WHERE id = $1`, [followerId]);
-  if (followerRes.rowCount === 0) throw new Error('Follower not found');
-  const targetRes = await pool.query(`SELECT id FROM users WHERE id = $1`, [targetId]);
-  if (targetRes.rowCount === 0) throw new Error('Target not found');
+  const follower = await db.select({ id: users.id }).from(users).where(eq(users.id, followerId));
+  if (follower.length === 0) throw new Error('Follower not found');
+  
+  const target = await db.select({ id: users.id }).from(users).where(eq(users.id, targetId));
+  if (target.length === 0) throw new Error('Target not found');
 
-  const exists = await pool.query(
-    `SELECT id FROM follows WHERE following_user_id = $1 AND followed_user_id = $2`,
-    [followerId, targetId]
-  );
-  if (exists.rowCount === 0) {
-    await pool.query(
-      `INSERT INTO follows (following_user_id, followed_user_id) VALUES ($1, $2)`,
-      [followerId, targetId]
-    );
+  const existingFollow = await db
+    .select({ id: follows.id })
+    .from(follows)
+    .where(and(eq(follows.followingUserId, followerId), eq(follows.followedUserId, targetId)));
+  if (existingFollow.length === 0) {
+    await db.insert(follows).values({ followingUserId: followerId, followedUserId: targetId });
   }
 
-  const following = await pool.query(
-    `SELECT followed_user_id FROM follows WHERE following_user_id = $1`,
-    [followerId]
-  );
+  const followingList = await db
+    .select({ followedUserId: follows.followedUserId })
+    .from(follows)
+    .where(eq(follows.followingUserId, followerId));
 
   return {
     id: followerId,
-    following: following.rows.map(r => r.followed_user_id),
+    following: followingList.map(f => f.followedUserId),
   };
 }

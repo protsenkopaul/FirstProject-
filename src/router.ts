@@ -8,7 +8,9 @@ import {
   CreatePostSchema,
   CreateUserSchema,
 } from "./schemas.js";
-import { pool } from "./db.js";
+import { db } from "./db.js";
+import { users } from "./db/schema.js";
+import { eq } from "drizzle-orm";
 
 
 const app = new Hono();
@@ -40,17 +42,12 @@ app.get("/feed/:id", async (c) => {
 
 app.post('/register', sValidator('json', CreateUserSchema), async (c) => {
   const { username, password } = await c.req.json();
-  const ex = await pool.query(`SELECT id FROM users WHERE username = $1`, [username]);
-  const existingCount = (ex?.rowCount ?? ex?.rows?.length ?? 0) as number;
-  if (existingCount > 0) return c.json({ error: 'Username already exists' }, 400);
-  const passwordHash = hashPassword(password);
-  const res = await pool.query(
-    `INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING *`,
-    [username, passwordHash]
-  );
-  const row = res.rows[0];
-  const user = { id: row.id, username: row.username, createdAt: row.created_at || row.createdAt };
-  return c.json(user, 201);
+  const existingUsers = await db.select({ id: users.id }).from(users).where(eq(users.username, username));
+  if (existingUsers.length > 0) return c.json({ error: 'Username already exists' }, 400);
+  const passwordHash = await hashPassword(password);
+  const insertedUsers = await db.insert(users).values({ username, passwordHash }).returning();
+  const user = insertedUsers[0];
+  return c.json({ id: user.id, username: user.username, createdAt: user.createdAt }, 201);
 });
 
 export default app;

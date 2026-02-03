@@ -1,4 +1,6 @@
-import { pool } from "../db.js";
+import { db } from "../db.js";
+import { posts, follows } from "../db/schema.js";
+import { eq, inArray, desc } from "drizzle-orm";
 
 export type Post = {
   id: string;
@@ -10,42 +12,41 @@ export type Post = {
 };
 
 export async function createPost(authorId: string, title: string, content: string): Promise<Post> {
-  const res = await pool.query(
-    `INSERT INTO posts (title, body, user_id)
-     VALUES ($1, $2, $3)
-     RETURNING *`,
-    [title, content, authorId]
-  );
-  const row = res.rows[0];
+  const inserted = await db
+    .insert(posts)
+    .values({ title, body: content, userId: authorId })
+    .returning();
+  const row = inserted[0];
   return {
     id: row.id,
-    authorId: row.user_id || row.userid || row.userId,
+    authorId: row.userId,
     title: row.title,
-    content: row.body || row.content,
-    createdAt: row.created_at || row.createdAt || row.createdat,
+    content: row.body,
+    createdAt: row.createdAt ? row.createdAt.toISOString() : '',
     likes: 0,
   };
 }
 
 export async function getFeed(authorId: string): Promise<Post[]> {
-  const followsRes = await pool.query(
-    `SELECT followed_user_id FROM follows WHERE following_user_id = $1`,
-    [authorId]
-  );
-  const followed = followsRes.rows.map((r: any) => r.followed_user_id);
-  if (followed.length === 0) return [];
+  const followingList = await db
+    .select({ followedUserId: follows.followedUserId })
+    .from(follows)
+    .where(eq(follows.followingUserId, authorId));
+  const followedIds = followingList.map((f) => f.followedUserId).filter((id): id is string => id !== null);
+  if (followedIds.length === 0) return [];
 
-  const postsRes = await pool.query(
-    `SELECT * FROM posts WHERE user_id = ANY($1::uuid[]) ORDER BY created_at DESC`,
-    [followed]
-  );
+  const feedPosts = await db
+    .select()
+    .from(posts)
+    .where(inArray(posts.userId, followedIds))
+    .orderBy(desc(posts.createdAt));
 
-  return postsRes.rows.map((row: any) => ({
+  return feedPosts.map((row) => ({
     id: row.id,
-    authorId: row.user_id || row.userid || row.userId,
+    authorId: row.userId,
     title: row.title,
-    content: row.body || row.content,
-    createdAt: row.created_at || row.createdAt || row.createdat,
+    content: row.body,
+    createdAt: row.createdAt ? row.createdAt.toISOString() : '',
     likes: 0,
   }));
 }
