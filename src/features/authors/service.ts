@@ -1,7 +1,6 @@
-import { db } from "../db.js";
-import { users, follows } from "../db/schema.js";
+import { db } from "../../db.js";
+import { users, follows } from "../../db/schema.js";
 import { eq, and } from "drizzle-orm";
-import argon2 from 'argon2'
 
 type UserRow = {
   id: string;
@@ -26,12 +25,6 @@ export async function createAuthor(name: string, bio?: string) {
     .returning();
   const row = inserted[0];
   return normalizeUserRow(row as UserRow);
-}
-
-export function hashPassword(password: string) {
-    return argon2.hash(password, {
-    type: argon2.argon2id
-  })
 }
 
 export async function followAuthor(followerId: string, targetId: string) {

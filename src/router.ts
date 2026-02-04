@@ -1,16 +1,14 @@
 import { Hono } from 'hono';
 import { sValidator } from '@hono/standard-validator';
-import { createAuthor, followAuthor, hashPassword } from "./models/author-controller.js";
-import { createPost, getFeed } from "./models/post-controller.js";
+import { createAuthor, followAuthor } from "./features/authors/service.js";
+import { createPost, getFeed } from "./features/posts/service.js";
+import { registerUser } from "./features/auth/service.js";
 import {
   CreateAuthorSchema,
   FollowAuthorSchema,
   CreatePostSchema,
   CreateUserSchema,
 } from "./schemas.js";
-import { db } from "./db.js";
-import { users } from "./db/schema.js";
-import { eq } from "drizzle-orm";
 
 
 const app = new Hono();
@@ -42,12 +40,12 @@ app.get("/feed/:id", async (c) => {
 
 app.post('/register', sValidator('json', CreateUserSchema), async (c) => {
   const { username, password } = await c.req.json();
-  const existingUsers = await db.select({ id: users.id }).from(users).where(eq(users.username, username));
-  if (existingUsers.length > 0) return c.json({ error: 'Username already exists' }, 400);
-  const passwordHash = await hashPassword(password);
-  const insertedUsers = await db.insert(users).values({ username, passwordHash }).returning();
-  const user = insertedUsers[0];
-  return c.json({ id: user.id, username: user.username, createdAt: user.createdAt }, 201);
+  try {
+    const user = await registerUser(username, password);
+    return c.json(user, 201);
+  } catch (error) {
+    return c.json({ error: 'Username already exists' }, 400);
+  }
 });
 
 export default app;

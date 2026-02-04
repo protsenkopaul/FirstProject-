@@ -1,5 +1,5 @@
-import { db } from "../db.js";
-import { posts, follows } from "../db/schema.js";
+import { db } from "../../db.js";
+import { posts, follows } from "../../db/schema.js";
 import { eq, inArray, desc } from "drizzle-orm";
 
 export type Post = {
