@@ -28,27 +28,29 @@ export async function createAuthor(name: string, bio?: string) {
 }
 
 export async function followAuthor(followerId: string, targetId: string) {
-  const follower = await db.select({ id: users.id }).from(users).where(eq(users.id, followerId));
-  if (follower.length === 0) throw new Error('Follower not found');
-  
-  const target = await db.select({ id: users.id }).from(users).where(eq(users.id, targetId));
-  if (target.length === 0) throw new Error('Target not found');
+  return await db.transaction(async (tx) => {
+    const follower = await tx.select({ id: users.id }).from(users).where(eq(users.id, followerId));
+    if (follower.length === 0) throw new Error('Follower not found');
 
-  const existingFollow = await db
-    .select({ id: follows.id })
-    .from(follows)
-    .where(and(eq(follows.followingUserId, followerId), eq(follows.followedUserId, targetId)));
-  if (existingFollow.length === 0) {
-    await db.insert(follows).values({ followingUserId: followerId, followedUserId: targetId });
-  }
+    const target = await tx.select({ id: users.id }).from(users).where(eq(users.id, targetId));
+    if (target.length === 0) throw new Error('Target not found');
 
-  const followingList = await db
-    .select({ followedUserId: follows.followedUserId })
-    .from(follows)
-    .where(eq(follows.followingUserId, followerId));
+    const existingFollow = await tx
+      .select({ id: follows.id })
+      .from(follows)
+      .where(and(eq(follows.followingUserId, followerId), eq(follows.followedUserId, targetId)));
+    if (existingFollow.length === 0) {
+      await tx.insert(follows).values({ followingUserId: followerId, followedUserId: targetId });
+    }
 
-  return {
-    id: followerId,
-    following: followingList.map(f => f.followedUserId),
-  };
+    const followingList = await tx
+      .select({ followedUserId: follows.followedUserId })
+      .from(follows)
+      .where(eq(follows.followingUserId, followerId));
+
+    return {
+      id: followerId,
+      following: followingList.map(f => f.followedUserId),
+    };
+  });
 }
