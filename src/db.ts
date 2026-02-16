@@ -1,23 +1,32 @@
-import fs from "fs/promises";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
+import 'dotenv/config';
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import crypto from 'crypto';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Postgres pool + Drizzle client
+const connectionString = process.env.DATABASE_URL || process.env.PG_CONNECTION || '';
+if (!connectionString) {
+  console.warn('DATABASE_URL not set — Drizzle will attempt to connect with an empty connection string');
+}
 
-const dataDir = resolve(__dirname, "../data");
+export const pool = new Pool({ connectionString });
+export const db = drizzle(pool);
 
-export async function readJson<T>(file: string): Promise<T[]> {
-  const filePath = resolve(dataDir, file);
+// Simple password helpers using scrypt
+export function hashPassword(password: string) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const derived = crypto.scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${derived}`;
+}
+
+export function verifyPassword(password: string, stored: string) {
   try {
-    const text = await fs.readFile(filePath, "utf-8");
-    return JSON.parse(text);
+    const [salt, key] = stored.split(':');
+    const derived = crypto.scryptSync(password, salt, 64).toString('hex');
+    return crypto.timingSafeEqual(Buffer.from(key, 'hex'), Buffer.from(derived, 'hex'));
   } catch {
-    return [];
+    return false;
   }
 }
 
-export async function writeJson<T>(file: string, data: T[]): Promise<void> {
-  const filePath = resolve(dataDir, file);
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
-}
+export default db;
