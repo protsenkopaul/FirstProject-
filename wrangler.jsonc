@@ -2,7 +2,10 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "firstproject",
   "main": "src/index.ts",
-  "compatibility_date": "2025-10-24"
+  "compatibility_date": "2025-10-24",
+  "vars": {
+    "JWT_SECRET": "your-secret-key-min-32-characters-long"
+  }
   // "compatibility_flags": [
   //   "nodejs_compat"
   // ],
