@@ -1,6 +1,7 @@
 {
   "name": "FirstProject",
   "type": "module",
+  "main": "src/router.ts",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",

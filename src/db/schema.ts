@@ -107,3 +107,12 @@ export const views = pgTable("views", {
   createdAt: timestamp({ withTimezone: true }).defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).defaultNow(),
 });
+
+export const refreshTokens = pgTable("refresh_tokens", {
+  id: uuid().primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id),
+  token: text().notNull(),
+  expiresAt: timestamp({ withTimezone: true }).notNull(),
+  revokedAt: timestamp({ withTimezone: true }),
+  createdAt: timestamp({ withTimezone: true }).defaultNow(),
+});
