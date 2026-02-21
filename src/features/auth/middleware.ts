@@ -1,8 +1,8 @@
 import { MiddlewareHandler } from 'hono';
-import { jwtVerify, SignJWT } from 'jose';
+import { jwtVerify, SignJWT, jwtDecrypt } from 'jose';
 import { db } from '../../db.js';
-import { users } from '../../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { users, refreshTokens } from '../../db/schema.js';
+import { eq, and, gt, isNull } from 'drizzle-orm';
 import argon2 from 'argon2';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key-min-32-characters-long');
@@ -24,6 +24,85 @@ export async function generateToken(userId: string, username: string): Promise<s
     .sign(JWT_SECRET);
   
   return token;
+}
+
+export async function generateRefreshToken(userId: string): Promise<string> {
+  const token = await new SignJWT({ userId, type: 'refresh' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .sign(JWT_SECRET);
+
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
+  await db.insert(refreshTokens).values({
+    userId,
+    token,
+    expiresAt,
+  });
+
+  return token;
+}
+
+export async function verifyRefreshToken(token: string): Promise<string | null> {
+  const validTokens = await db
+    .select()
+    .from(refreshTokens)
+    .where(
+      and(
+        eq(refreshTokens.token, token),
+        isNull(refreshTokens.revokedAt),
+        gt(refreshTokens.expiresAt, new Date())
+      )
+    )
+    .limit(1);
+
+  if (validTokens.length === 0) {
+    return null;
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return payload.userId as string;
+  } catch {
+    return null;
+  }
+}
+
+export async function revokeRefreshToken(token: string): Promise<void> {
+  await db
+    .update(refreshTokens)
+    .set({ revokedAt: new Date() })
+    .where(eq(refreshTokens.token, token));
+}
+
+export async function refreshAccessToken(refreshToken: string) {
+  const userId = await verifyRefreshToken(refreshToken);
+  
+  if (!userId) {
+    throw new Error('Invalid or expired refresh token');
+  }
+
+  const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  
+  if (user.length === 0) {
+    throw new Error('User not found');
+  }
+
+  await revokeRefreshToken(refreshToken);
+
+  const newAccessToken = await generateToken(user[0].id, user[0].username);
+  const newRefreshToken = await generateRefreshToken(user[0].id);
+
+  return {
+    token: newAccessToken,
+    refreshToken: newRefreshToken,
+    user: {
+      id: user[0].id,
+      username: user[0].username,
+    },
+  };
 }
 
 export const authMiddleware: MiddlewareHandler<{ Variables: Variables }> = async (c, next) => {
@@ -67,9 +146,11 @@ export async function loginUser(username: string, password: string) {
   }
   
   const token = await generateToken(user[0].id, user[0].username);
+  const refreshToken = await generateRefreshToken(user[0].id);
   
   return {
     token,
+    refreshToken,
     user: {
       id: user[0].id,
       username: user[0].username,

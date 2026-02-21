@@ -24,3 +24,7 @@ export const LoginSchema = z.object({
   username: z.string().min(3, 'Username is too short'),
   password: z.string().min(6, 'Password is too short'),
 });
+
+export const RefreshTokenSchema = z.object({
+  refreshToken: z.string().min(1),
+});
