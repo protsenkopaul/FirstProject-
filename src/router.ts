@@ -3,11 +3,14 @@ import { sValidator } from '@hono/standard-validator';
 import { createAuthor, followAuthor } from "./features/authors/service.js";
 import { createPost, getFeed } from "./features/posts/service.js";
 import { registerUser } from "./features/auth/service.js";
+import { authMiddleware, loginUser, refreshAccessToken } from "./features/auth/middleware.js";
 import {
   CreateAuthorSchema,
   FollowAuthorSchema,
   CreatePostSchema,
   CreateUserSchema,
+  LoginSchema,
+  RefreshTokenSchema,
 } from "./schemas.js";
 
 
@@ -48,6 +51,25 @@ app.post('/register', sValidator('json', CreateUserSchema), async (c) => {
   }
 });
 
+app.post('/login', sValidator('json', LoginSchema), async (c) => {
+  const { username, password } = await c.req.json();
+  try {
+    const result = await loginUser(username, password);
+    return c.json(result);
+  } catch (error) {
+    return c.json({ error: 'Invalid credentials' }, 401);
+  }
+});
+
+app.post('/refresh', sValidator('json', RefreshTokenSchema), async (c) => {
+  const { refreshToken } = await c.req.json();
+  try {
+    const result = await refreshAccessToken(refreshToken);
+    return c.json(result);
+  } catch (error) {
+    return c.json({ error: 'Invalid or expired refresh token' }, 401);
+  }
+});
+
 export default app;
-
-
+export { authMiddleware };
