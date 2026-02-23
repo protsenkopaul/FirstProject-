@@ -11,8 +11,8 @@ export const users = pgTable("users", {
   username: text().notNull(),
   bio: text(),
   passwordHash: text(),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
 
 export const posts = pgTable("posts", {
@@ -23,24 +23,24 @@ export const posts = pgTable("posts", {
     .notNull()
     .references(() => users.id),
   status: text(),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
 
 export const follows = pgTable("follows", {
   id: uuid().primaryKey().defaultRandom(),
   followingUserId: uuid("following_user_id").references(() => users.id),
   followedUserId: uuid("followed_user_id").references(() => users.id),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
 
 export const likes = pgTable("likes", {
   id: uuid().primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id),
   likedPostId: uuid("liked_post_id").references(() => posts.id),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
 
 export const comments = pgTable("comments", {
@@ -48,39 +48,39 @@ export const comments = pgTable("comments", {
   userId: uuid("user_id").references(() => users.id),
   commentedPostId: uuid("commented_post_id").references(() => posts.id),
   content: text().notNull(),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
 
 export const tags = pgTable("tags", {
   id: uuid().primaryKey().defaultRandom(),
   name: text().unique().notNull(),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
 
 export const postTags = pgTable("post_tags", {
   id: uuid().primaryKey().defaultRandom(),
   tagId: uuid("tag_id").references(() => tags.id),
   postId: uuid("post_id").references(() => posts.id),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
 
 export const blogs = pgTable("blogs", {
   id: uuid().primaryKey().defaultRandom(),
   title: text().notNull(),
   description: text(),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
 
 export const blogPosts = pgTable("blog_posts", {
   id: uuid().primaryKey().defaultRandom(),
   blogId: uuid("blog_id").references(() => blogs.id),
   postId: uuid("post_id").references(() => posts.id),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
 
 export const blogAuthors = pgTable("blog_authors", {
@@ -88,31 +88,32 @@ export const blogAuthors = pgTable("blog_authors", {
   blogId: uuid("blog_id").references(() => blogs.id),
   authorId: uuid("author_id").references(() => users.id),
   role: text(),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
 
 export const blogFollows = pgTable("blog_follows", {
   id: uuid().primaryKey().defaultRandom(),
   blogId: uuid("blog_id").references(() => blogs.id),
   followerId: uuid("follower_id").references(() => users.id),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
 
 export const views = pgTable("views", {
   id: uuid().primaryKey().defaultRandom(),
   postId: uuid("post_id").references(() => posts.id),
   readerId: uuid("reader_id").references(() => users.id),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
 
 export const refreshTokens = pgTable("refresh_tokens", {
   id: uuid().primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id),
   token: text().notNull(),
-  expiresAt: timestamp({ withTimezone: true }).notNull(),
-  revokedAt: timestamp({ withTimezone: true }),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 });
