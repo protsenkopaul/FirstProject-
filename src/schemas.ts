@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+export const JWTPayloadSchema = z.object({
+  userId: z.string().uuid(),
+  username: z.string(),
+});
+
+export type JWTPayload = z.infer<typeof JWTPayloadSchema>;
+
 export const CreateAuthorSchema = z.object({
   name: z.string().min(2, "Name is too short"),
   bio: z.string().optional(),

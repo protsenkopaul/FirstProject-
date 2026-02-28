@@ -1,12 +1,6 @@
 import { MiddlewareHandler } from 'hono';
-import { jwtVerify } from 'jose';
-
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
-
-export type JWTPayload = {
-  userId: string;
-  username: string;
-};
+import { JWTPayload } from '../../schemas.js';
+import { verifyToken } from './service.js';
 
 export type Variables = {
   user: JWTPayload;
@@ -22,16 +16,9 @@ export const authMiddleware: MiddlewareHandler<{ Variables: Variables }> = async
   const token = authHeader.substring(7);
   
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const user = await verifyToken(token);
     
-    if (!payload.userId || !payload.username) {
-      return c.json({ error: 'Invalid token payload' }, 401);
-    }
-    
-    c.set('user', {
-      userId: payload.userId as string,
-      username: payload.username as string,
-    });
+    c.set('user', user);
     
     await next();
   } catch (error) {

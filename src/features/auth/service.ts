@@ -3,6 +3,7 @@ import { users, refreshTokens } from "../../db/schema.js";
 import { eq, and, gt, isNull } from "drizzle-orm";
 import argon2 from 'argon2'
 import { SignJWT, jwtVerify } from 'jose';
+import { JWTPayload, JWTPayloadSchema } from "../../schemas.js";
 
 export function hashPassword(password: string) {
     return argon2.hash(password, {
@@ -26,11 +27,6 @@ export async function registerUser(username: string, password: string) {
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
-export type JWTPayload = {
-  userId: string;
-  username: string;
-};
-
 export async function generateToken(userId: string, username: string): Promise<string> {
   const token = await new SignJWT({ userId, username })
     .setProtectedHeader({ alg: 'HS256' })
@@ -39,6 +35,11 @@ export async function generateToken(userId: string, username: string): Promise<s
     .sign(JWT_SECRET);
   
   return token;
+}
+
+export async function verifyToken(token: string): Promise<JWTPayload> {
+  const { payload } = await jwtVerify(token, JWT_SECRET);
+  return JWTPayloadSchema.parse(payload);
 }
 
 export async function generateRefreshToken(userId: string): Promise<string> {
