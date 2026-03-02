@@ -35,3 +35,13 @@ export const LoginSchema = z.object({
 export const RefreshTokenSchema = z.object({
   refreshToken: z.string().min(1),
 });
+
+export const UpdatePostSchema = z.object({
+  title: z.string().min(3, "Title is too short").optional(),
+  content: z.string().min(5, "Content is too short").optional(),
+});
+
+export const UpdateAuthorSchema = z.object({
+  name: z.string().min(2, "Name is too short").optional(),
+  bio: z.string().optional(),
+});
