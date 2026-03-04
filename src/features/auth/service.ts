@@ -3,7 +3,7 @@ import { users, refreshTokens } from "../../db/schema.js";
 import { eq, and, gt, isNull } from "drizzle-orm";
 import argon2 from 'argon2'
 import { SignJWT, jwtVerify } from 'jose';
-import { JWTPayload, JWTPayloadSchema } from "../../schemas.js";
+import { JWTPayload, JWTPayloadSchema } from "./schemas.js";
 
 export function hashPassword(password: string) {
     return argon2.hash(password, {
@@ -11,17 +11,17 @@ export function hashPassword(password: string) {
   })
 }
 
-export async function registerUser(username: string, password: string) {
+export async function registerUser(params: { username: string; password: string }) {
   return await db.transaction(async (tx) => {
-    const existingUsers = await tx.select({ id: users.id }).from(users).where(eq(users.username, username));
+    const existingUsers = await tx.select({ userId: users.userId }).from(users).where(eq(users.username, params.username));
     if (existingUsers.length > 0) {
       throw new Error('Username already exists');
     }
 
-    const passwordHash = await hashPassword(password);
-    const insertedUsers = await tx.insert(users).values({ username, passwordHash }).returning();
+    const passwordHash = await hashPassword(params.password);
+    const insertedUsers = await tx.insert(users).values({ username: params.username, passwordHash }).returning();
     const user = insertedUsers[0];
-    return { id: user.id, username: user.username, createdAt: user.createdAt };
+    return { id: user.userId, username: user.username, createdAt: user.createdAt };
   });
 }
 
@@ -93,55 +93,55 @@ export async function revokeRefreshToken(token: string): Promise<void> {
     .where(eq(refreshTokens.token, token));
 }
 
-export async function refreshAccessToken(refreshToken: string) {
-  const userId = await verifyRefreshToken(refreshToken);
+export async function refreshAccessToken(params: { refreshToken: string }) {
+  const userId = await verifyRefreshToken(params.refreshToken);
   
   if (!userId) {
     throw new Error('Invalid or expired refresh token');
   }
 
-  const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  const user = await db.select().from(users).where(eq(users.userId, userId)).limit(1);
   
   if (user.length === 0) {
     throw new Error('User not found');
   }
 
-  await revokeRefreshToken(refreshToken);
+  await revokeRefreshToken(params.refreshToken);
 
-  const newAccessToken = await generateToken(user[0].id, user[0].username);
-  const newRefreshToken = await generateRefreshToken(user[0].id);
+  const newAccessToken = await generateToken(user[0].userId, user[0].username);
+  const newRefreshToken = await generateRefreshToken(user[0].userId);
 
   return {
     token: newAccessToken,
     refreshToken: newRefreshToken,
     user: {
-      id: user[0].id,
+      id: user[0].userId,
       username: user[0].username,
     },
   };
 }
 
-export async function loginUser(username: string, password: string) {
-  const user = await db.select().from(users).where(eq(users.username, username)).limit(1);
+export async function loginUser(params: { username: string; password: string }) {
+  const user = await db.select().from(users).where(eq(users.username, params.username)).limit(1);
   
   if (user.length === 0) {
     throw new Error('Invalid credentials');
   }
   
-  const isValidPassword = await argon2.verify(user[0].passwordHash!, password);
+  const isValidPassword = await argon2.verify(user[0].passwordHash!, params.password);
   
   if (!isValidPassword) {
     throw new Error('Invalid credentials');
   }
   
-  const token = await generateToken(user[0].id, user[0].username);
-  const refreshToken = await generateRefreshToken(user[0].id);
+  const token = await generateToken(user[0].userId, user[0].username);
+  const refreshToken = await generateRefreshToken(user[0].userId);
   
   return {
     token,
     refreshToken,
     user: {
-      id: user[0].id,
+      id: user[0].userId,
       username: user[0].username,
     },
   };
