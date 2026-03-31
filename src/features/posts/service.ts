@@ -1,6 +1,9 @@
 import { db } from "../../db.js";
 import { posts, follows, likes } from "../../db/schema.js";
 import { eq, inArray, desc, count } from "drizzle-orm";
+import { z } from "zod";
+import { HTTPException } from 'hono/http-exception';
+import { CreatePostSchema, UpdatePostSchema } from "./schemas.js";
 
 export type Post = {
   id: string;
@@ -11,15 +14,7 @@ export type Post = {
   likes: number;
 };
 
-export type PostUpdateResult =
-  | { ok: true; data: Post }
-  | { ok: false; reason: "not_found" | "unauthorized" };
-
-export type PostDeleteResult =
-  | { ok: true }
-  | { ok: false; reason: "not_found" | "unauthorized" };
-
-export async function createPost(params: { authorId: string; title: string; content: string }): Promise<Post> {
+export async function createPost(params: z.infer<typeof CreatePostSchema>): Promise<Post> {
   const inserted = await db
     .insert(posts)
     .values({ title: params.title, body: params.content, userId: params.authorId })
@@ -59,14 +54,14 @@ export async function getFeed(authorId: string): Promise<Post[]> {
   }));
 }
 
-export async function getPostById(id: string): Promise<Post | null> {
+export async function getPostById(id: string): Promise<Post> {
   const result = await db
     .select()
     .from(posts)
     .where(eq(posts.postId, id))
     .limit(1);
   
-  if (result.length === 0) return null;
+  if (result.length === 0) throw new HTTPException(404, { message: 'Post not found' });
   
   const row = result[0];
   const [likeCount] = await db
@@ -87,16 +82,16 @@ export async function getPostById(id: string): Promise<Post | null> {
 export async function updatePost(
   id: string,
   userId: string,
-  params: { title?: string; content?: string }
-): Promise<PostUpdateResult> {
+  params: z.infer<typeof UpdatePostSchema>
+): Promise<Post> {
   const existing = await db
     .select()
     .from(posts)
     .where(eq(posts.postId, id))
     .limit(1);
   
-  if (existing.length === 0) return { ok: false, reason: "not_found" };
-  if (existing[0].userId !== userId) return { ok: false, reason: "unauthorized" };
+  if (existing.length === 0) throw new HTTPException(404, { message: 'Post not found' });
+  if (existing[0].userId !== userId) throw new HTTPException(403, { message: 'Unauthorized' });
   
   const updateValues: { title?: string; body?: string } = {};
   if (params.title) updateValues.title = params.title;
@@ -110,31 +105,26 @@ export async function updatePost(
   
   const row = updated[0];
   return {
-    ok: true,
-    data: {
-      id: row.postId,
-      authorId: row.userId,
-      title: row.title,
-      content: row.body,
-      createdAt: row.createdAt ? row.createdAt.toISOString() : '',
-      likes: 0,
-    },
+    id: row.postId,
+    authorId: row.userId,
+    title: row.title,
+    content: row.body,
+    createdAt: row.createdAt ? row.createdAt.toISOString() : '',
+    likes: 0,
   };
 }
 
-export async function deletePost(id: string, userId: string): Promise<PostDeleteResult> {
+export async function deletePost(id: string, userId: string): Promise<void> {
   const existing = await db
     .select()
     .from(posts)
     .where(eq(posts.postId, id))
     .limit(1);
   
-  if (existing.length === 0) return { ok: false, reason: "not_found" };
-  if (existing[0].userId !== userId) return { ok: false, reason: "unauthorized" };
+  if (existing.length === 0) throw new HTTPException(404, { message: 'Post not found' });
+  if (existing[0].userId !== userId) throw new HTTPException(403, { message: 'Unauthorized' });
   
   await db.delete(posts).where(eq(posts.postId, id));
-  
-  return { ok: true };
 }
 
 export async function getPostsByUserId(userId: string): Promise<Post[]> {

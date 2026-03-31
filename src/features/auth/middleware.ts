@@ -1,4 +1,4 @@
-import { MiddlewareHandler } from 'hono';
+import { createMiddleware } from 'hono/factory';
 import { JWTPayload } from './schemas.js';
 import { verifyToken } from './service.js';
 
@@ -6,7 +6,7 @@ export type Variables = {
   user: JWTPayload;
 };
 
-export const auth: MiddlewareHandler<{ Variables: Variables }> = async (c, next) => {
+export const auth = createMiddleware<{ Variables: Variables }>(async (c, next) => {
   const authHeader = c.req.header('Authorization');
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -24,4 +24,4 @@ export const auth: MiddlewareHandler<{ Variables: Variables }> = async (c, next)
   } catch (error) {
     return c.json({ error: 'Invalid or expired token' }, 401);
   }
-};
+});

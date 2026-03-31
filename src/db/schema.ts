@@ -9,6 +9,7 @@ import {
 export const users = pgTable("users", {
   userId: uuid("user_id").primaryKey().defaultRandom(),
   username: text().notNull().unique(),
+  email: text().unique(),
   bio: text(),
   passwordHash: text(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -21,7 +22,7 @@ export const posts = pgTable("posts", {
   body: text("body").notNull(),
   userId: uuid("user_id")
     .notNull()
-    .references(() => users.userId, { onDelete: "cascade" }),
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
   status: text(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -31,10 +32,10 @@ export const follows = pgTable("follows", {
   followId: uuid("follow_id").primaryKey().defaultRandom(),
   followingUserId: uuid("following_user_id")
     .notNull()
-    .references(() => users.userId, { onDelete: "cascade" }),
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
   followedUserId: uuid("followed_user_id")
     .notNull()
-    .references(() => users.userId, { onDelete: "cascade" }),
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
@@ -45,10 +46,10 @@ export const likes = pgTable("likes", {
   likeId: uuid("like_id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
     .notNull()
-    .references(() => users.userId, { onDelete: "cascade" }),
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
   likedPostId: uuid("liked_post_id")
     .notNull()
-    .references(() => posts.postId, { onDelete: "cascade" }),
+    .references(() => posts.postId, { onDelete: "restrict", onUpdate: "restrict" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
@@ -59,10 +60,10 @@ export const comments = pgTable("comments", {
   commentId: uuid("comment_id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
     .notNull()
-    .references(() => users.userId, { onDelete: "cascade" }),
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
   commentedPostId: uuid("commented_post_id")
     .notNull()
-    .references(() => posts.postId, { onDelete: "cascade" }),
+    .references(() => posts.postId, { onDelete: "restrict", onUpdate: "restrict" }),
   content: text().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -79,10 +80,10 @@ export const postTags = pgTable("post_tags", {
   postTagId: uuid("post_tag_id").primaryKey().defaultRandom(),
   tagId: uuid("tag_id")
     .notNull()
-    .references(() => tags.tagId, { onDelete: "cascade" }),
+    .references(() => tags.tagId, { onDelete: "restrict", onUpdate: "restrict" }),
   postId: uuid("post_id")
     .notNull()
-    .references(() => posts.postId, { onDelete: "cascade" }),
+    .references(() => posts.postId, { onDelete: "restrict", onUpdate: "restrict" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
@@ -101,10 +102,10 @@ export const blogPosts = pgTable("blog_posts", {
   blogPostId: uuid("blog_post_id").primaryKey().defaultRandom(),
   blogId: uuid("blog_id")
     .notNull()
-    .references(() => blogs.blogId, { onDelete: "cascade" }),
+    .references(() => blogs.blogId, { onDelete: "restrict", onUpdate: "restrict" }),
   postId: uuid("post_id")
     .notNull()
-    .references(() => posts.postId, { onDelete: "cascade" }),
+    .references(() => posts.postId, { onDelete: "restrict", onUpdate: "restrict" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
@@ -115,10 +116,10 @@ export const blogAuthors = pgTable("blog_authors", {
   blogAuthorId: uuid("blog_author_id").primaryKey().defaultRandom(),
   blogId: uuid("blog_id")
     .notNull()
-    .references(() => blogs.blogId, { onDelete: "cascade" }),
+    .references(() => blogs.blogId, { onDelete: "restrict", onUpdate: "restrict" }),
   authorId: uuid("author_id")
     .notNull()
-    .references(() => users.userId, { onDelete: "cascade" }),
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
   role: text(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -130,10 +131,10 @@ export const blogFollows = pgTable("blog_follows", {
   blogFollowId: uuid("blog_follow_id").primaryKey().defaultRandom(),
   blogId: uuid("blog_id")
     .notNull()
-    .references(() => blogs.blogId, { onDelete: "cascade" }),
+    .references(() => blogs.blogId, { onDelete: "restrict", onUpdate: "restrict" }),
   followerId: uuid("follower_id")
     .notNull()
-    .references(() => users.userId, { onDelete: "cascade" }),
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
@@ -144,10 +145,10 @@ export const views = pgTable("views", {
   viewId: uuid("view_id").primaryKey().defaultRandom(),
   postId: uuid("post_id")
     .notNull()
-    .references(() => posts.postId, { onDelete: "cascade" }),
+    .references(() => posts.postId, { onDelete: "restrict", onUpdate: "restrict" }),
   readerId: uuid("reader_id")
     .notNull()
-    .references(() => users.userId, { onDelete: "cascade" }),
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -156,7 +157,7 @@ export const refreshTokens = pgTable("refresh_tokens", {
   refreshTokenId: uuid("refresh_token_id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
     .notNull()
-    .references(() => users.userId, { onDelete: "cascade" }),
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
   token: text().notNull().unique(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),

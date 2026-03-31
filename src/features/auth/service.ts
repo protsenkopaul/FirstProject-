@@ -3,7 +3,10 @@ import { users, refreshTokens } from "../../db/schema.js";
 import { eq, and, gt, isNull } from "drizzle-orm";
 import argon2 from 'argon2'
 import { SignJWT, jwtVerify } from 'jose';
-import { JWTPayload, JWTPayloadSchema } from "./schemas.js";
+import { z } from "zod";
+import { JWTPayload, JWTPayloadSchema, CreateUserSchema, LoginSchema, RefreshTokenSchema } from "./schemas.js";
+import { sendWelcomeEmail } from "../../services/email.js";
+import { HTTPException } from 'hono/http-exception';
 
 export function hashPassword(password: string) {
     return argon2.hash(password, {
@@ -11,17 +14,27 @@ export function hashPassword(password: string) {
   })
 }
 
-export async function registerUser(params: { username: string; password: string }) {
+export async function registerUser(params: z.infer<typeof CreateUserSchema>) {
   return await db.transaction(async (tx) => {
     const existingUsers = await tx.select({ userId: users.userId }).from(users).where(eq(users.username, params.username));
     if (existingUsers.length > 0) {
-      throw new Error('Username already exists');
+      throw new HTTPException(400, { message: 'Username already exists' });
+    }
+
+    const existingEmails = await tx.select({ userId: users.userId }).from(users).where(eq(users.email, params.email));
+    if (existingEmails.length > 0) {
+      throw new HTTPException(400, { message: 'Email already exists' });
     }
 
     const passwordHash = await hashPassword(params.password);
-    const insertedUsers = await tx.insert(users).values({ username: params.username, passwordHash }).returning();
+    const insertedUsers = await tx.insert(users).values({ username: params.username, email: params.email, passwordHash }).returning();
     const user = insertedUsers[0];
-    return { id: user.userId, username: user.username, createdAt: user.createdAt };
+
+    sendWelcomeEmail(params.email, params.username).catch(err => {
+      console.error('Email sending failed:', err);
+    });
+
+    return { id: user.userId, username: user.username, email: user.email, createdAt: user.createdAt };
   });
 }
 
@@ -93,17 +106,17 @@ export async function revokeRefreshToken(token: string): Promise<void> {
     .where(eq(refreshTokens.token, token));
 }
 
-export async function refreshAccessToken(params: { refreshToken: string }) {
+export async function refreshAccessToken(params: z.infer<typeof RefreshTokenSchema>) {
   const userId = await verifyRefreshToken(params.refreshToken);
   
   if (!userId) {
-    throw new Error('Invalid or expired refresh token');
+    throw new HTTPException(401, { message: 'Invalid or expired refresh token' });
   }
 
   const user = await db.select().from(users).where(eq(users.userId, userId)).limit(1);
   
   if (user.length === 0) {
-    throw new Error('User not found');
+    throw new HTTPException(404, { message: 'User not found' });
   }
 
   await revokeRefreshToken(params.refreshToken);
@@ -121,17 +134,17 @@ export async function refreshAccessToken(params: { refreshToken: string }) {
   };
 }
 
-export async function loginUser(params: { username: string; password: string }) {
+export async function loginUser(params: z.infer<typeof LoginSchema>) {
   const user = await db.select().from(users).where(eq(users.username, params.username)).limit(1);
   
   if (user.length === 0) {
-    throw new Error('Invalid credentials');
+    throw new HTTPException(401, { message: 'Invalid credentials' });
   }
   
   const isValidPassword = await argon2.verify(user[0].passwordHash!, params.password);
   
   if (!isValidPassword) {
-    throw new Error('Invalid credentials');
+    throw new HTTPException(401, { message: 'Invalid credentials' });
   }
   
   const token = await generateToken(user[0].userId, user[0].username);

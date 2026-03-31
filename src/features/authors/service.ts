@@ -1,6 +1,9 @@
 import { db } from "../../db.js";
 import { users, follows } from "../../db/schema.js";
 import { eq, and, count } from "drizzle-orm";
+import { z } from "zod";
+import { HTTPException } from 'hono/http-exception';
+import { CreateAuthorSchema, UpdateAuthorSchema } from "./schemas.js";
 
 type UserRow = {
   userId: string;
@@ -20,7 +23,7 @@ const normalizeUserRow = (row: UserRow) => ({
   following: [] as string[],
 });
 
-export async function createAuthor(params: { name: string; bio?: string }) {
+export async function createAuthor(params: z.infer<typeof CreateAuthorSchema>) {
   const inserted = await db
     .insert(users)
     .values({ username: params.name, bio: params.bio })
@@ -32,10 +35,10 @@ export async function createAuthor(params: { name: string; bio?: string }) {
 export async function followAuthor(params: { followerId: string; targetId: string }) {
   return await db.transaction(async (tx) => {
     const follower = await tx.select({ userId: users.userId }).from(users).where(eq(users.userId, params.followerId));
-    if (follower.length === 0) throw new Error('Follower not found');
+    if (follower.length === 0) throw new HTTPException(404, { message: 'Follower not found' });
 
     const target = await tx.select({ userId: users.userId }).from(users).where(eq(users.userId, params.targetId));
-    if (target.length === 0) throw new Error('Target not found');
+    if (target.length === 0) throw new HTTPException(404, { message: 'Target not found' });
 
     const existingFollow = await tx
       .select({ followId: follows.followId })
@@ -64,7 +67,7 @@ export async function getAuthorById(id: string) {
     .where(eq(users.userId, id))
     .limit(1);
   
-  if (result.length === 0) return null;
+  if (result.length === 0) throw new HTTPException(404, { message: 'Author not found' });
   
   const row = result[0];
   
@@ -83,7 +86,7 @@ export async function getAuthorById(id: string) {
   };
 }
 
-export async function updateAuthor(id: string, params: { name?: string; bio?: string }) {
+export async function updateAuthor(id: string, params: z.infer<typeof UpdateAuthorSchema>) {
   const updateValues: { username?: string; bio?: string } = {};
   if (params.name) updateValues.username = params.name;
   if (params.bio !== undefined) updateValues.bio = params.bio;
@@ -94,7 +97,7 @@ export async function updateAuthor(id: string, params: { name?: string; bio?: st
     .where(eq(users.userId, id))
     .returning();
   
-  if (updated.length === 0) return null;
+  if (updated.length === 0) throw new HTTPException(404, { message: 'Author not found' });
   
   const row = updated[0];
   return {
