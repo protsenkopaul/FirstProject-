@@ -1,109 +1,166 @@
 import {
   pgTable,
   uuid,
-  varchar,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
-  id: uuid().primaryKey().defaultRandom(),
-  username: text().notNull(),
+  userId: uuid("user_id").primaryKey().defaultRandom(),
+  username: text().notNull().unique(),
+  email: text().unique(),
   bio: text(),
   passwordHash: text(),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const posts = pgTable("posts", {
-  id: uuid().primaryKey().defaultRandom(),
+  postId: uuid("post_id").primaryKey().defaultRandom(),
   title: text().notNull(),
   body: text("body").notNull(),
   userId: uuid("user_id")
     .notNull()
-    .references(() => users.id),
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
   status: text(),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const follows = pgTable("follows", {
-  id: uuid().primaryKey().defaultRandom(),
-  followingUserId: uuid("following_user_id").references(() => users.id),
-  followedUserId: uuid("followed_user_id").references(() => users.id),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
-});
+  followId: uuid("follow_id").primaryKey().defaultRandom(),
+  followingUserId: uuid("following_user_id")
+    .notNull()
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
+  followedUserId: uuid("followed_user_id")
+    .notNull()
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  uniqueFollow: uniqueIndex("unique_follow").on(table.followingUserId, table.followedUserId),
+}));
 
 export const likes = pgTable("likes", {
-  id: uuid().primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => users.id),
-  likedPostId: uuid("liked_post_id").references(() => posts.id),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
-});
+  likeId: uuid("like_id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
+  likedPostId: uuid("liked_post_id")
+    .notNull()
+    .references(() => posts.postId, { onDelete: "restrict", onUpdate: "restrict" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  uniqueLike: uniqueIndex("unique_like").on(table.userId, table.likedPostId),
+}));
 
 export const comments = pgTable("comments", {
-  id: uuid().primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => users.id),
-  commentedPostId: uuid("commented_post_id").references(() => posts.id),
+  commentId: uuid("comment_id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
+  commentedPostId: uuid("commented_post_id")
+    .notNull()
+    .references(() => posts.postId, { onDelete: "restrict", onUpdate: "restrict" }),
   content: text().notNull(),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const tags = pgTable("tags", {
-  id: uuid().primaryKey().defaultRandom(),
-  name: text().unique().notNull(),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  tagId: uuid("tag_id").primaryKey().defaultRandom(),
+  name: text().notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const postTags = pgTable("post_tags", {
-  id: uuid().primaryKey().defaultRandom(),
-  tagId: uuid("tag_id").references(() => tags.id),
-  postId: uuid("post_id").references(() => posts.id),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
-});
+  postTagId: uuid("post_tag_id").primaryKey().defaultRandom(),
+  tagId: uuid("tag_id")
+    .notNull()
+    .references(() => tags.tagId, { onDelete: "restrict", onUpdate: "restrict" }),
+  postId: uuid("post_id")
+    .notNull()
+    .references(() => posts.postId, { onDelete: "restrict", onUpdate: "restrict" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  uniquePostTag: uniqueIndex("unique_post_tag").on(table.tagId, table.postId),
+}));
 
 export const blogs = pgTable("blogs", {
-  id: uuid().primaryKey().defaultRandom(),
+  blogId: uuid("blog_id").primaryKey().defaultRandom(),
   title: text().notNull(),
   description: text(),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const blogPosts = pgTable("blog_posts", {
-  id: uuid().primaryKey().defaultRandom(),
-  blogId: uuid("blog_id").references(() => blogs.id),
-  postId: uuid("post_id").references(() => posts.id),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
-});
+  blogPostId: uuid("blog_post_id").primaryKey().defaultRandom(),
+  blogId: uuid("blog_id")
+    .notNull()
+    .references(() => blogs.blogId, { onDelete: "restrict", onUpdate: "restrict" }),
+  postId: uuid("post_id")
+    .notNull()
+    .references(() => posts.postId, { onDelete: "restrict", onUpdate: "restrict" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  uniqueBlogPost: uniqueIndex("unique_blog_post").on(table.blogId, table.postId),
+}));
 
 export const blogAuthors = pgTable("blog_authors", {
-  id: uuid().primaryKey().defaultRandom(),
-  blogId: uuid("blog_id").references(() => blogs.id),
-  authorId: uuid("author_id").references(() => users.id),
+  blogAuthorId: uuid("blog_author_id").primaryKey().defaultRandom(),
+  blogId: uuid("blog_id")
+    .notNull()
+    .references(() => blogs.blogId, { onDelete: "restrict", onUpdate: "restrict" }),
+  authorId: uuid("author_id")
+    .notNull()
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
   role: text(),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
-});
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  uniqueBlogAuthor: uniqueIndex("unique_blog_author").on(table.blogId, table.authorId),
+}));
 
 export const blogFollows = pgTable("blog_follows", {
-  id: uuid().primaryKey().defaultRandom(),
-  blogId: uuid("blog_id").references(() => blogs.id),
-  followerId: uuid("follower_id").references(() => users.id),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
-});
+  blogFollowId: uuid("blog_follow_id").primaryKey().defaultRandom(),
+  blogId: uuid("blog_id")
+    .notNull()
+    .references(() => blogs.blogId, { onDelete: "restrict", onUpdate: "restrict" }),
+  followerId: uuid("follower_id")
+    .notNull()
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  uniqueBlogFollow: uniqueIndex("unique_blog_follow").on(table.blogId, table.followerId),
+}));
 
 export const views = pgTable("views", {
-  id: uuid().primaryKey().defaultRandom(),
-  postId: uuid("post_id").references(() => posts.id),
-  readerId: uuid("reader_id").references(() => users.id),
-  createdAt: timestamp({ withTimezone: true }).defaultNow(),
-  updatedAt: timestamp({ withTimezone: true }).defaultNow(),
+  viewId: uuid("view_id").primaryKey().defaultRandom(),
+  postId: uuid("post_id")
+    .notNull()
+    .references(() => posts.postId, { onDelete: "restrict", onUpdate: "restrict" }),
+  readerId: uuid("reader_id")
+    .notNull()
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const refreshTokens = pgTable("refresh_tokens", {
+  refreshTokenId: uuid("refresh_token_id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.userId, { onDelete: "restrict", onUpdate: "restrict" }),
+  token: text().notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
