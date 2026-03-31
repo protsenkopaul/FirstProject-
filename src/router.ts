@@ -6,8 +6,7 @@ import { registerUser, loginUser, refreshAccessToken } from "./features/auth/ser
 import { auth } from "./features/auth/middleware.js";
 import { CreateUserSchema, LoginSchema, RefreshTokenSchema } from "./features/auth/schemas.js";
 import { CreateAuthorSchema, FollowAuthorSchema, UpdateAuthorSchema, AuthorIdParamSchema } from "./features/authors/schemas.js";
-import { CreatePostSchema, UpdatePostSchema, PostIdParamSchema } from "./features/posts/schemas.js";
-import { UserIdParamSchema } from "./schemas.js";
+import { CreatePostSchema, UpdatePostSchema, PostIdParamSchema, UserIdParamSchema } from "./features/posts/schemas.js";
 
 
 const app = new Hono();
@@ -49,29 +48,13 @@ app.put("/posts/:postId", auth, sValidator('param', PostIdParamSchema), sValidat
   const user = c.get('user');
   const params = c.req.valid('json');
   const result = await updatePost(postId, user.userId, params);
-  
-  if (!result.ok) {
-    if (result.reason === "not_found") {
-      return c.json({ error: 'Post not found' }, 404);
-    }
-    return c.json({ error: 'Unauthorized' }, 403);
-  }
-  
-  return c.json(result.data);
+  return c.json(result);
 });
 
 app.delete("/posts/:postId", auth, sValidator('param', PostIdParamSchema), async (c) => {
   const { postId } = c.req.valid('param');
   const user = c.get('user');
-  const result = await deletePost(postId, user.userId);
-  
-  if (!result.ok) {
-    if (result.reason === "not_found") {
-      return c.json({ error: 'Post not found' }, 404);
-    }
-    return c.json({ error: 'Unauthorized' }, 403);
-  }
-  
+  await deletePost(postId, user.userId);
   return c.json({ success: true });
 });
 

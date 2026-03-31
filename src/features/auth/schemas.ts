@@ -9,6 +9,7 @@ export type JWTPayload = z.infer<typeof JWTPayloadSchema>;
 
 export const CreateUserSchema = z.object({
   username: z.string().min(3, 'Username is too short'),
+  email: z.string().email('Invalid email format'),
   password: z.string().min(6, 'Password is too short'),
 });
 
